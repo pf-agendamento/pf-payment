@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Оплата по СБП</title>
+  <meta name="theme-color" content="#f5f3ee" />
+  <link rel="stylesheet" href="styles.css?v=0.5.0" />
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <div class="heroTop">
+        <div class="eyebrow">PF Agendamento</div>
+        <div class="badge">Оплата по СБП</div>
+      </div>
+      <div class="amountBlock">
+        <div class="amountLabel">Сумма к оплате</div>
+        <div id="amountView" class="amount">0,00 ₽</div>
+      </div>
+    </section>
+
+    <section class="banksSection">
+      <h1>Выберите свой банк</h1>
+      <div id="banksList" class="banksList"></div>
+    </section>
+  </main>
+
+  <div id="modalOverlay" class="modalOverlay hidden" aria-hidden="true">
+    <div class="modalCard">
+      <button id="modalClose" class="modalClose" type="button" aria-label="Закрыть">×</button>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="app.js?v=0.5.0"></script>
+</body>
+</html>
