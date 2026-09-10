@@ -15,6 +15,8 @@ const DIRECT_BANK_URLS = {
 };
 
 const params = new URLSearchParams(window.location.search);
+const BRIDGE_URL = "https://pf-payment-bridge.pf-agendamento.workers.dev";
+const paymentToken = params.get("p") || "";
 
 function normalizePhone(raw) {
   const digits = String(raw || "").replace(/\D/g, "");
@@ -335,4 +337,55 @@ function render() {
   });
 }
 
-render();
+async function init() {
+  // Старый режим пока сохраняем для тестов.
+  if (!paymentToken) {
+    render();
+    return;
+  }
+
+  const amountView = document.getElementById("amountView");
+  const banksList = document.getElementById("banksList");
+
+  amountView.textContent = "Загрузка…";
+  banksList.innerHTML = "";
+
+  try {
+    const response = await fetch(`${BRIDGE_URL}/payment/open`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        payment_token: paymentToken
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.ok || !data.order) {
+      throw new Error(data.error || "Payment not found");
+    }
+
+    state.amount = Number(data.order.amount_rub);
+
+    if (!Number.isFinite(state.amount) || state.amount <= 0) {
+      throw new Error("Invalid payment amount");
+    }
+
+     render();
+
+  } catch (error) {
+    console.error(error);
+
+    amountView.textContent = "Ошибка";
+    banksList.innerHTML = `
+      <div style="padding:20px;text-align:center">
+        Не удалось загрузить данные платежа.<br>
+        Проверьте ссылку или попробуйте ещё раз.
+      </div>
+    `;
+  }
+}
+
+init();
