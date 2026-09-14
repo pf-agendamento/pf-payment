@@ -1,4 +1,4 @@
-const PAYMENT_LANDING_VERSION = "0.6.3-qrlocal1";
+const PAYMENT_LANDING_VERSION = "0.6.4-payment-lifecycle1";
 
 const DEFAULT_PHONE = "79296029876";
 const DEFAULT_PHONE_DISPLAY = "+7 (929) 602-98-76";
@@ -16,6 +16,12 @@ const DYNAMIC_BANK_CODES = {
   "Газпромбанк": "gazprom",
   "Совкомбанк": "sovcom",
   "МТС-Банк": "mts"
+};
+
+const NON_DYNAMIC_BANK_CODES = {
+  "Т-Банк": "tbank",
+  "СберБанк": "sber",
+  "Другие банки": "other"
 };
 
 function normalizePhone(raw) {
@@ -433,6 +439,37 @@ async function postBridgeWithRetry(path, payload, maxAttempts = 4) {
   throw lastError || new BridgeRequestError("Временная проблема со связью.", true, 0);
 }
 
+
+async function notifyNonDynamicBankSelected(bankCode) {
+  if (!paymentToken || !bankCode) return false;
+
+  // keepalive lets the request survive the immediate hand-off from the
+  // browser to a banking app. Failure must never block the payment route.
+  try {
+    const response = await fetch(`${BRIDGE_URL}/payment/bank-selected`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        payment_token: paymentToken,
+        bank: bankCode
+      }),
+      keepalive: true
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok) {
+      console.warn("PAYMENT_CHECK_ARM_FAILED", data.error || response.status);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.warn("PAYMENT_CHECK_ARM_FAILED", error);
+    return false;
+  }
+}
+
 async function waitForPaymentArtifacts(bankName) {
   const startedAt = Date.now();
   let transientFailures = 0;
@@ -552,9 +589,11 @@ async function startDynamicPayment(bank) {
   }
 }
 
-function openBank(bank) {
+async function openBank(bank) {
   if (bank.type === "manualOther") {
     openOtherBanksModal();
+    // Do not delay the manual instructions; keepalive sends the signal.
+    void notifyNonDynamicBankSelected(NON_DYNAMIC_BANK_CODES[bank.name]);
     return;
   }
 
@@ -566,11 +605,19 @@ function openBank(bank) {
   if (bank.type === "manualSber") {
     copyTextSync(formatPhone(state.phone));
     showToast("Номер скопирован. Откройте Сбер и выберите перевод по номеру телефона.");
+    void notifyNonDynamicBankSelected(NON_DYNAMIC_BANK_CODES[bank.name]);
     return;
   }
 
   if (bank.type === "tbank") {
     copyTextSync(formatPhone(state.phone));
+
+    // Arm History checking before leaving the browser. keepalive protects the
+    // request during app hand-off; a short head start improves reliability
+    // without making the user wait for the network.
+    void notifyNonDynamicBankSelected(NON_DYNAMIC_BANK_CODES[bank.name]);
+    await wait(120);
+
     tryLinksSequentially(tbankLinks(), null);
     return;
   }
@@ -696,6 +743,15 @@ async function init() {
     }
 
     render();
+
+    if (data.order.payment_status === "PAID") {
+      banksList.innerHTML = `
+        <div style="padding:20px;text-align:center;line-height:1.6">
+          <b>Оплата получена ✓</b><br>
+          Повторно оплачивать этот заказ не нужно.
+        </div>
+      `;
+    }
 
   } catch (error) {
     console.error(error);
