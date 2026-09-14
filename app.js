@@ -1,4 +1,4 @@
-const PAYMENT_LANDING_VERSION = "0.6.6-paid-minimal";
+const PAYMENT_LANDING_VERSION = "0.6.7-paid-minimal-no-badge";
 
 const DEFAULT_PHONE = "79296029876";
 const DEFAULT_PHONE_DISPLAY = "+7 (929) 602-98-76";
@@ -744,7 +744,8 @@ function hidePaidOnlyDecorations() {
   const hideTexts = [
     "Выберите свой банк",
     "Сумма к оплате",
-    "Сумма платежа"
+    "Сумма платежа",
+    "Оплата по СБП"
   ];
 
   for (const el of document.querySelectorAll("h1,h2,h3,h4,h5,h6,p,span,div,label")) {
