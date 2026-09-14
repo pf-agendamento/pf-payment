@@ -1,4 +1,4 @@
-const PAYMENT_LANDING_VERSION = "0.6.4-payment-lifecycle1";
+const PAYMENT_LANDING_VERSION = "0.6.6-paid-minimal";
 
 const DEFAULT_PHONE = "79296029876";
 const DEFAULT_PHONE_DISPLAY = "+7 (929) 602-98-76";
@@ -714,6 +714,79 @@ function render() {
   });
 }
 
+
+function setExactTextVisibility(text, visible) {
+  const wanted = String(text || "").trim();
+
+  for (const el of document.querySelectorAll(
+    "h1,h2,h3,h4,h5,h6,p,span,div,label"
+  )) {
+    if ((el.textContent || "").trim() === wanted) {
+      el.style.display = visible ? "" : "none";
+    }
+  }
+}
+
+function replaceExactText(fromText, toText) {
+  const wanted = String(fromText || "").trim();
+
+  for (const el of document.querySelectorAll(
+    "h1,h2,h3,h4,h5,h6,p,span,div,label"
+  )) {
+    if ((el.textContent || "").trim() === wanted) {
+      el.textContent = toText;
+    }
+  }
+}
+
+
+function hidePaidOnlyDecorations() {
+  const hideTexts = [
+    "Выберите свой банк",
+    "Сумма к оплате",
+    "Сумма платежа"
+  ];
+
+  for (const el of document.querySelectorAll("h1,h2,h3,h4,h5,h6,p,span,div,label")) {
+    const t = (el.textContent || "").trim();
+    if (hideTexts.includes(t)) {
+      el.style.display = "none";
+    }
+  }
+
+  // Hide the large amount card when the order is already paid.
+  for (const div of document.querySelectorAll("div")) {
+    const txt = (div.textContent || "").trim();
+    if (txt === "1 274,00 ₽") {
+      // keep backward compatibility if amount happens to be rendered as plain text only
+      continue;
+    }
+    const normalized = txt.replace(/\s+/g, " ");
+    if (
+      normalized.includes("Сумма к оплате") ||
+      normalized.includes("Сумма платежа")
+    ) {
+      div.style.display = "none";
+    }
+  }
+}
+
+function renderPaidState(order) {
+  const banksList = document.getElementById("banksList");
+
+  hidePaidOnlyDecorations();
+
+  banksList.innerHTML = `
+    <div style="padding:40px 20px;text-align:center;line-height:1.8;max-width:640px;margin:0 auto;">
+      <div style="font-size:34px;font-weight:700;">Оплата получена ✓</div>
+      <div style="margin-top:14px;font-size:26px;font-weight:500;">
+        Повторно оплачивать этот заказ не нужно.
+      </div>
+    </div>
+  `;
+}
+
+
 async function init() {
   // Старый режим оставляем только для локальных/визуальных тестов страницы.
   if (!paymentToken) {
@@ -745,12 +818,7 @@ async function init() {
     render();
 
     if (data.order.payment_status === "PAID") {
-      banksList.innerHTML = `
-        <div style="padding:20px;text-align:center;line-height:1.6">
-          <b>Оплата получена ✓</b><br>
-          Повторно оплачивать этот заказ не нужно.
-        </div>
-      `;
+      renderPaidState(data.order);
     }
 
   } catch (error) {
