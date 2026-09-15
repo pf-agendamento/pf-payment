@@ -1,4 +1,4 @@
-const PAYMENT_LANDING_VERSION = "0.6.7-paid-minimal-no-badge";
+const PAYMENT_LANDING_VERSION = "0.6.8-sber-amount-copy-open";
 
 const DEFAULT_PHONE = "79296029876";
 const DEFAULT_PHONE_DISPLAY = "+7 (929) 602-98-76";
@@ -146,6 +146,15 @@ function tbankLinks() {
     `tbank://Main/${q}`,
     `bank100000000004://Main/${q}`,
     `tinkoffbank://Main/${q}`
+  ];
+}
+
+
+function sberLinks() {
+  const phone = String(state.phone || "").replace(/\D/g, "");
+  return [
+    `intent://${phone}#Intent;scheme=tel;package=ru.sberbankmobile;end`,
+    `tel:${phone}`
   ];
 }
 
@@ -603,9 +612,14 @@ async function openBank(bank) {
   }
 
   if (bank.type === "manualSber") {
-    copyTextSync(formatPhone(state.phone));
-    showToast("Номер скопирован. Откройте Сбер и выберите перевод по номеру телефона.");
+    // Proven Sber route: tel:<phone> opens the transfer flow with the phone
+    // already filled on Android.  The amount itself cannot be prefilled
+    // reliably, so copy the exact amount before leaving the browser.
+    copyTextSync(String(Math.trunc(state.amount)));
+    showToast("Сумма скопирована. Открываю Сбер…");
     void notifyNonDynamicBankSelected(NON_DYNAMIC_BANK_CODES[bank.name]);
+    await wait(120);
+    tryLinksSequentially(sberLinks(), null);
     return;
   }
 
